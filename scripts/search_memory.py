@@ -17,7 +17,7 @@ import re
 import sys
 from collections import Counter
 
-TAG_LINE_RE = re.compile(r"^\s*(标签|tags?)\s*[:：]", re.IGNORECASE)
+TAG_LINE_RE = re.compile(r"^\s*[-*]?\s*(标签|tags?)\s*[:：]", re.IGNORECASE)
 HEADING_RE = re.compile(r"^#{2,6}\s+(.*)$")
 H1_RE = re.compile(r"^#\s+(.*)$")
 CN_RE = re.compile(r"[\u4e00-\u9fff]+")

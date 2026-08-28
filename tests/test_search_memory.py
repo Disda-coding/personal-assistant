@@ -102,6 +102,12 @@ class TestSegmentTf(unittest.TestCase):
         tf = sm.segment_tf(seg)
         self.assertEqual(tf["预算"], 1.0 + 3.0)
 
+    def test_bulleted_tag_line_boosted_3x(self):
+        """P1 回归: 总结模板的 '- 标签: #x'(带项目符号)同样享受 x3 加权。"""
+        seg = {"content": "正文出现预算\n- 标签: #预算", "title": "", "h1": ""}
+        tf = sm.segment_tf(seg)
+        self.assertEqual(tf["预算"], 1.0 + 3.0)
+
     def test_title_boosted_2x(self):
         """标题命中权重 x2 (TITLE_BOOST=2.0)。"""
         seg = {"content": "正文出现预算一次", "title": "预算会议", "h1": ""}
@@ -147,7 +153,7 @@ class TestSearchEndToEnd(unittest.TestCase):
         with open(os.path.join(self.dir, "summaries", "2026-08-28_年报.docx.md"), "w", encoding="utf-8") as f:
             f.write(
                 "# 总结: 年报\n\n- 源文件: /tmp/x.docx\n- 日期: 2026-08-28\n"
-                "- 分类: 工作\n- 标签: #量子财务审计\n\n## 核心内容\n- 营收增长百分之二十\n"
+                "- 分类: 工作\n- 标签: #量子财务审计\n相关任务: T002 年报审核\n\n## 核心内容\n- 营收增长百分之二十\n"
             )
         os.makedirs(os.path.join(self.dir, "notes"))
         with open(os.path.join(self.dir, "notes", "work.md"), "w", encoding="utf-8") as f:
@@ -182,6 +188,12 @@ class TestSearchEndToEnd(unittest.TestCase):
         rc, out = self._run("T001")
         self.assertEqual(rc, 0)
         self.assertIn("相关任务: T001 年报PPT", out)
+
+    def test_search_task_id_hits_summary_related_line(self):
+        """P0 回归: 总结文件的'相关任务:'行(位于 ## 之前的元数据块)可被任务 ID 搜到。"""
+        rc, out = self._run("T002")
+        self.assertEqual(rc, 0)
+        self.assertIn("相关任务: T002 年报审核", out)
 
     def test_search_no_match(self):
         """无结果时明确输出'无匹配'且退出码 0。"""
