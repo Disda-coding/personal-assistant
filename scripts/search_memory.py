@@ -73,7 +73,8 @@ def _para_seg(path, h1, para, pstart):
 def split_file(path, text):
     """把一个 md 文件切成片段列表。
 
-    有 ## 级及以上标题: 每个标题一个片段（H1 作为文件级上下文）。
+    有 ## 级及以上标题: 每个标题一个片段（H1 作为文件级上下文）；
+    首个 ## 之前的孤立内容（如总结文件的元数据块）也单独成一个片段。
     无标题: 按空行分段。
     """
     segs = []
@@ -89,6 +90,23 @@ def split_file(path, text):
     heading_idx = [i for i, l in enumerate(lines) if HEADING_RE.match(l)]
 
     if heading_idx:
+        # 首个 ## 之前的孤立内容（如总结文件的元数据块）单独成块，
+        # 保证其中的 标签: 等元数据行也能被检索到（否则永远不进任何片段）
+        head_start = next(
+            (i for i, l in enumerate(lines[: heading_idx[0]])
+             if l.strip() and not H1_RE.match(l)),
+            None,
+        )
+        if head_start is not None:
+            head = [l for l in lines[head_start : heading_idx[0]] if l.strip()]
+            segs.append({
+                "file": path,
+                "h1": h1,
+                "title": (h1 or "(文件头)")[:40],
+                "start": head_start + 1,
+                "end": heading_idx[0],
+                "content": "\n".join(head),
+            })
         bounds = heading_idx + [len(lines)]
         for k in range(len(heading_idx)):
             start = heading_idx[k]

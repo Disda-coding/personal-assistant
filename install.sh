@@ -50,7 +50,10 @@ copy_skill() {
     rm -rf "$dest"
   fi
   mkdir -p "$(dirname "$dest")"
-  cp -r "$SRC" "$dest"
+  # 只拷贝 skill 必需文件, 避免把源目录中的 .git/安装器等无关文件带入目标
+  mkdir -p "$dest/scripts"
+  cp "$SRC/SKILL.md" "$dest/SKILL.md"
+  cp -r "$SRC/scripts/." "$dest/scripts/"
   echo "安装完成: $dest"
 }
 

@@ -1,4 +1,4 @@
-﻿# 一键安装 personal-assistant skill（Windows 用本脚本; Linux/macOS 用 install.sh）
+# 一键安装 personal-assistant skill（Windows 用本脚本; Linux/macOS 用 install.sh）
 # 兼容工具: TRAE(.trae\skills), Claude Code(.claude\skills), OpenCode(.opencode\skill), Codex 等 AGENTS.md 类工具
 # 用法: .\install.ps1 -Target "<项目根>" [-Tools trae,claude,opencode,agents] [-Force] [-Global claude|opencode]
 param(
@@ -30,7 +30,10 @@ function Copy-Skill([string]$dest) {
         }
         Remove-Item $dest -Recurse -Force
     }
-    Copy-Item -Path $src -Destination $dest -Recurse
+    # 只拷贝 skill 必需文件, 避免把源目录中的 .git/安装器等无关文件带入目标
+    New-Item -ItemType Directory -Path $dest -Force | Out-Null
+    Copy-Item -Path (Join-Path $src "SKILL.md") -Destination $dest
+    Copy-Item -Path (Join-Path $src "scripts") -Destination $dest -Recurse
     Write-Host "安装完成: $dest" -ForegroundColor Green
 }
 

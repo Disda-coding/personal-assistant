@@ -12,7 +12,7 @@ description: "Personal assistant with persistent markdown memory at ~/assistant:
 ## 0. 环境与初始化
 
 - 数据根目录：`~/assistant`（用户主目录下 `assistant` 文件夹。Windows: `C:\Users\<用户名>\assistant`；Linux: `/home/<用户名>/assistant`；macOS: `/Users/<用户名>/assistant`。迁移电脑 = 拷贝整个文件夹）
-- **首次使用时**（该目录不存在）先初始化：
+- **首次使用时**（该目录不存在）先初始化；目录已存在但文件缺失时，仅补齐缺失项：
   - `~/assistant/tasks.md`：任务总表（空分区表，格式见 3.2）
   - `~/assistant/notes/`：预置 5 个分类文件 `work.md`（工作）、`life.md`（生活）、`study.md`（学习）、`ideas.md`（想法）、`health.md`（健康）
   - `~/assistant/summaries/`：文档总结归档（空目录）
@@ -62,6 +62,7 @@ description: "Personal assistant with persistent markdown memory at ~/assistant:
 ```
 
 4. 回复用户总结内容。此后该总结自动进入检索池，用户可直接问"上次那个文档讲了什么"
+5. 脚本对 PDF 输出 pypdf 安装引导时（本机未装依赖），将引导原样转告用户，不视为失败
 
 ## 2. RAG 式检索问答（核心流程）
 
@@ -76,6 +77,8 @@ description: "Personal assistant with persistent markdown memory at ~/assistant:
 5. 检索无结果 → 明确告知"记忆里没有相关记录"，并询问是否需要记录
 6. 对话中产生的新事实（用户提到的偏好、决定、近况）→ 按 1.1 流程主动写回记忆（更新而非重复），并简短告知用户已记住
 
+> 任务/待办类问题：直接 Read `tasks.md`（归档任务查 `archive/tasks-*.md`）定位任务行，不走检索脚本——表格按 `##` 分区整表成单片段，无法定位到行
+
 ## 3. 任务管理（辅助）
 
 ### 3.1 任务录入
@@ -83,7 +86,7 @@ description: "Personal assistant with persistent markdown memory at ~/assistant:
 用户交代任务（一句话可含多个任务，自动拆分）：
 
 1. 提取：任务描述、优先级（高/中/低，默认中）、截止日期（相对日期换算为 YYYY-MM-DD，可空）、分类、子任务
-2. 分配 ID：读 tasks.md 现有最大 ID +1，格式 `T001`
+2. 分配 ID：读 `tasks.md` 与 `archive/tasks-*.md` 取全局最大 ID +1，格式 `T001`（防止全部归档后 ID 回绕、与旧任务冲突）
 3. 写入 `tasks.md` 对应分区（"进行中"或"待办"）
 4. 回显录入结果表格
 
@@ -125,7 +128,7 @@ description: "Personal assistant with persistent markdown memory at ~/assistant:
    - ⚠️ **逾期**（截止日期 < 今天）
    - 📅 **今日到期**（截止日期 = 今天）
    - ⏳ **未来 3 天内到期** + 所有进行中任务
-3. 无截止日期的任务排在所在分组末尾按优先级排
+3. 无截止日期的任务（含进行中与待办）统一归入 ⏳ 组末尾，按优先级排
 4. 表格后附一句汇总（如"共 5 项，2 项逾期"）
 
 **全量查看**：按状态分区渲染完整表格，逾期/今日到期加 ⚠️/📅 标注。
@@ -135,8 +138,8 @@ description: "Personal assistant with persistent markdown memory at ~/assistant:
 **机制**：任务（`tasks.md`）与记忆（`notes/`、`summaries/`）自动双向关联，形成"任务↔记忆"网，避免信息孤岛。关联由你在执行录入/更新时自动建立并维护。
 
 **关联字段约定：**
-- **任务侧**：在任务行"备注"列末尾追加 `→ 记忆: <文件名>·<条目标题>`（多条用 `；` 分隔；`文件名` 为相对 `~/assistant` 的路径，如 `notes/work.md`；`条目标题` 为条目完整 `##` 行文本、含日期前缀，如 `2026-08-20 年报会议`，保证同文件内唯一定位）
-- **记忆侧**：在笔记条目 `标签:` 行下方追加一行 `相关任务: <ID> <任务关键词>`（多条用 `；` 分隔）
+- **任务侧**：在任务行"备注"列末尾追加 `→ 记忆: <文件名>·<条目标题>`（多条用 `；` 分隔；`文件名` 为相对 `~/assistant` 的路径，如 `notes/work.md`；`条目标题` 为条目完整 `##` 行文本、含日期前缀，如 `2026-08-20 年报会议`，保证同文件内唯一定位；总结文件无独立条目，记其 H1 文件标题）
+- **记忆侧**：在笔记条目或总结文件的 `标签:` 行下方追加一行 `相关任务: <ID> <任务关键词>`（多条用 `；` 分隔）
 
 **联动流程：**
 
@@ -157,6 +160,7 @@ description: "Personal assistant with persistent markdown memory at ~/assistant:
 
 **链接维护（与第 4 节联动）：**
 - notes 按主题拆分为子文件时，条目连同其 `相关任务:` 行一起迁移，并同步更新任务侧 `→ 记忆:` 中的文件路径
+- summaries 按年份移入 `summaries/YYYY/` 子目录时，同样同步更新任务侧 `→ 记忆:` 中的文件路径
 - tasks 归档到 `archive/` 时，记忆侧 `相关任务:` 引用保持不变（任务 ID 不变，仍可检索定位），无需改写
 
 **最小惊讶提醒**：联动新增/修改内容会微小地改动 tasks.md 与 notes，属正常自维护，不需每次征求同意，但完成时应向用户简要说明"已建立 T00X ↔ 笔记Y 的关联"。
